@@ -1,24 +1,32 @@
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import typer
 
 from price_checker.http_parser import load_http_items
-from price_checker.models import PriceItem
+from price_checker.models import PriceItem, ProductRecord
 from price_checker.parser import load_csv_items
-from price_checker.pricing import price_change_pct, count_suspicious_items
-from price_checker.storage import create_products_table, save_items, load_items_from_db
-import sqlite3
+from price_checker.pricing import count_suspicious_items, price_change_pct
+from price_checker.storage import (
+    count_products,
+    create_products_table,
+    load_product_records,
+    save_items,
+)
 
 
 app = typer.Typer(help="Утилита для проверки прайс-листов из CSV и JSON по HTTP")
 
+
 def run_pipeline(url, timeout) -> None:
     items, skipped_count = load_http_items(url, timeout)
 
-    conn = sqlite3.connect("prices.db")
+    conn = sqlite3.connect("data/prices.db")
     try:
         create_products_table(conn)
         saved_count = save_items(conn, items)
+        total_in_db = count_products(conn)
     finally:
         conn.close()
 
@@ -27,13 +35,25 @@ def run_pipeline(url, timeout) -> None:
     typer.echo("Результат обработки")
     typer.echo("-" * 40)
     typer.echo(f"Получено элементов: {len(items)}")
-    typer.echo(f"Сохранено элементов: {saved_count}")
+    typer.echo(f"Изменено элементов: {saved_count}")
     typer.echo(f"Пропущено элементов: {skipped_count}")
+    typer.echo(f"Всего элементов в БД: {total_in_db}")
     typer.echo(f"Подозрительных изменений: {suspicious_count}")
+
 
 @app.callback()
 def main() -> None:
     pass
+
+
+def format_timestamp(timestamp: str) -> str:
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return timestamp
+
+    timezone_name = parsed.tzname() or "UTC"
+    return parsed.strftime("%Y-%m-%d %H:%M:%S ") + timezone_name
 
 
 # Выводит итоговый отчёт по товарам с учётом фильтров и порога подозрительности.
@@ -73,6 +93,46 @@ def show_report(
 
     typer.echo("-" * 60)
     typer.echo(f"Корректных строк: {len(items)}")
+    typer.echo(f"Показано строк: {shown_count}")
+
+    return shown_count
+
+
+def show_db_report(
+    *,
+    records: list[ProductRecord],
+    threshold: float,
+    only_suspicious: bool,
+    min_price: float,
+) -> int:
+    shown_count = 0
+
+    for record in records:
+        change = price_change_pct(record.old_price, record.new_price)
+        suspicious = abs(change) >= threshold
+
+        if only_suspicious and not suspicious:
+            continue
+        if record.new_price < min_price:
+            continue
+
+        mark = " !!!" if suspicious else ""
+
+        typer.echo(
+            f"{record.sku} | {record.name} | "
+            f"{record.old_price:.2f} -> {record.new_price:.2f} | "
+            f"{change:.2f}%{mark}"
+        )
+        typer.echo(
+            "created_at="
+            f"{format_timestamp(record.created_at)} | "
+            f"updated_at={format_timestamp(record.updated_at)}"
+        )
+
+        shown_count += 1
+
+    typer.echo("-" * 60)
+    typer.echo(f"Записей в БД: {len(records)}")
     typer.echo(f"Показано строк: {shown_count}")
 
     return shown_count
@@ -151,8 +211,11 @@ def check_url(
     ),
 ) -> None:
     run_pipeline(url, timeout=timeout)
-    conn = sqlite3.connect("prices.db")
-    items = load_items_from_db(conn)
+    conn = sqlite3.connect("data/prices.db")
+    try:
+        records = load_product_records(conn)
+    finally:
+        conn.close()
 
     typer.echo("Проверка прайс-листа")
     typer.echo(f"URL: {url}")
@@ -161,8 +224,8 @@ def check_url(
     typer.echo(f"Таймаут: {timeout:.2f} сек")
     typer.echo("-" * 60)
 
-    show_report(
-        items=items,
+    show_db_report(
+        records=records,
         threshold=threshold,
         only_suspicious=only_suspicious,
         min_price=min_price,
