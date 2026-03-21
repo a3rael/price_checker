@@ -2,9 +2,9 @@ from pathlib import Path
 
 import typer
 
-from price_checker.http_parser import load_items as load_items_from_url
+from price_checker.http_parser import load_http_items
 from price_checker.models import PriceItem
-from price_checker.parser import load_items as load_items_from_csv
+from price_checker.parser import load_csv_items
 from price_checker.pricing import price_change_pct
 
 app = typer.Typer(help="Утилита для проверки прайс-листов из CSV и JSON по HTTP")
@@ -15,6 +15,7 @@ def main() -> None:
     pass
 
 
+# Выводит итоговый отчёт по товарам с учётом фильтров и порога подозрительности.
 def show_report(
     *,
     items: list[PriceItem],
@@ -58,6 +59,7 @@ def show_report(
     return shown_count
 
 
+# Загружает прайс из локального CSV-файла и показывает отчёт в консоли.
 @app.command()
 def check(
     path: str = typer.Argument(
@@ -87,7 +89,7 @@ def check(
         typer.echo(f"Файл не найден: {csv_path}")
         raise typer.Exit(code=1)
 
-    items, skipped_count = load_items_from_csv(csv_path)
+    items, skipped_count = load_csv_items(csv_path)
 
     typer.echo("Проверка прайс-листа")
     typer.echo(f"Файл: {csv_path}")
@@ -104,6 +106,7 @@ def check(
     )
 
 
+# Загружает прайс из JSON по URL и показывает такой же отчёт, как для CSV.
 @app.command("check-url")
 def check_url(
     url: str = typer.Argument(..., help="URL JSON-источника с данными о ценах"),
@@ -129,7 +132,7 @@ def check_url(
         help="Таймаут HTTP-запроса в секундах",
     ),
 ) -> None:
-    items, skipped_count = load_items_from_url(url, timeout=timeout)
+    items, skipped_count = load_http_items(url, timeout=timeout)
 
     typer.echo("Проверка прайс-листа")
     typer.echo(f"URL: {url}")

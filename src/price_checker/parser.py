@@ -9,6 +9,7 @@ class RowValidationError(Exception):
     pass
 
 
+# Достаёт поля из строки CSV и приводит цены к числам.
 def parse_row_data(row) -> dict[str, str | float]:
     try:
         sku = row["sku"]
@@ -28,6 +29,7 @@ def parse_row_data(row) -> dict[str, str | float]:
     }
 
 
+# Проверяет бизнес-правила для одной строки с ценами.
 def validate_row_data(
     *, sku: str, name: str, old_price: float, new_price: float
 ) -> None:
@@ -47,6 +49,7 @@ def validate_row_data(
         raise RowValidationError("new_price не может быть отрицательной")
 
 
+# Объединяет разбор и валидацию строки, затем создаёт PriceItem.
 def parse_row(row) -> models.PriceItem:
     parsed_data = parse_row_data(row)
     validate_row_data(**parsed_data)
@@ -59,7 +62,8 @@ def parse_row(row) -> models.PriceItem:
     )
 
 
-def load_items(
+# Читает CSV-файл целиком, пропуская невалидные строки и считая их количество.
+def load_csv_items(
     csv_path: pathlib.Path,
 ) -> tuple[list[models.PriceItem], int]:
     items: list[models.PriceItem] = []

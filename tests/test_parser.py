@@ -6,6 +6,7 @@ from price_checker.parser import (
     parse_row_data,
     validate_row_data,
     RowValidationError,
+    load_csv_items,
 )
 
 
@@ -86,3 +87,21 @@ def test_parse_row_builds_price_item():
         old_price=100.0,
         new_price=120.0,
     )
+
+
+def test_load_csv_items_loads_valid_rows(tmp_path):
+    csv_file = tmp_path / "prices.csv"
+    csv_file.write_text(
+        "sku,name,old_price,new_price\n"
+        "1001,Товар,100,120\n"
+        "1002,Тест,50,45\n",
+        encoding="utf-8",
+    )
+
+    items, skipped_count = load_csv_items(csv_file)
+
+    assert items == [
+        PriceItem(sku="1001", name="Товар", old_price=100.0, new_price=120.0),
+        PriceItem(sku="1002", name="Тест", old_price=50.0, new_price=45.0),
+    ]
+    assert skipped_count == 0

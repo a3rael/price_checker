@@ -12,6 +12,7 @@ class HTTPDataError(Exception):
     pass
 
 
+# Выполняет HTTP GET-запрос и возвращает уже разобранный JSON-ответ.
 def fetch_json(url: str, timeout: float = 10.0) -> Any:
     try:
         response = requests.get(url, timeout=timeout)
@@ -25,6 +26,7 @@ def fetch_json(url: str, timeout: float = 10.0) -> Any:
         raise HTTPDataError("Ответ сервера не содержит корректный JSON") from e
 
 
+# Приводит JSON к единому виду: список объектов с данными товаров.
 def extract_items(data: Any) -> list[Mapping[str, object]]:
     if isinstance(data, list):
         items = data
@@ -46,7 +48,10 @@ def extract_items(data: Any) -> list[Mapping[str, object]]:
     return normalized_items
 
 
-def load_items(url: str, timeout: float = 10.0) -> tuple[list[models.PriceItem], int]:
+# Загружает данные по URL, валидирует элементы и превращает их в PriceItem.
+def load_http_items(
+    url: str, timeout: float = 10.0
+) -> tuple[list[models.PriceItem], int]:
     items: list[models.PriceItem] = []
     skipped_count = 0
 

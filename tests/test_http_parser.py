@@ -6,7 +6,7 @@ from price_checker.http_parser import (
     HTTPDataError,
     extract_items,
     fetch_json,
-    load_items,
+    load_http_items,
 )
 from price_checker.models import PriceItem
 
@@ -50,7 +50,7 @@ def test_fetch_json_returns_response_json(mock_get):
 
 
 @patch("price_checker.http_parser.requests.get")
-def test_load_items_parses_valid_json_items(mock_get):
+def test_load_http_items_parses_valid_json_items(mock_get):
     response = Mock()
     response.raise_for_status.return_value = None
     response.json.return_value = [
@@ -59,7 +59,7 @@ def test_load_items_parses_valid_json_items(mock_get):
     ]
     mock_get.return_value = response
 
-    items, skipped_count = load_items("https://example.com/api/prices")
+    items, skipped_count = load_http_items("https://example.com/api/prices")
 
     assert items == [
         PriceItem(sku="1001", name="Товар", old_price=100.0, new_price=120.0),
@@ -69,7 +69,7 @@ def test_load_items_parses_valid_json_items(mock_get):
 
 
 @patch("price_checker.http_parser.requests.get")
-def test_load_items_skips_invalid_items(mock_get, capsys):
+def test_load_http_items_skips_invalid_items(mock_get, capsys):
     response = Mock()
     response.raise_for_status.return_value = None
     response.json.return_value = [
@@ -78,7 +78,7 @@ def test_load_items_skips_invalid_items(mock_get, capsys):
     ]
     mock_get.return_value = response
 
-    items, skipped_count = load_items("https://example.com/api/prices")
+    items, skipped_count = load_http_items("https://example.com/api/prices")
 
     assert items == [
         PriceItem(sku="1001", name="Товар", old_price=100.0, new_price=120.0)
