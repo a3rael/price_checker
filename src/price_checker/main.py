@@ -5,10 +5,31 @@ import typer
 from price_checker.http_parser import load_http_items
 from price_checker.models import PriceItem
 from price_checker.parser import load_csv_items
-from price_checker.pricing import price_change_pct
+from price_checker.pricing import price_change_pct, count_suspicious_items
+from price_checker.storage import create_products_table, save_items, load_items_from_db
+import sqlite3
+
 
 app = typer.Typer(help="Утилита для проверки прайс-листов из CSV и JSON по HTTP")
 
+def run_pipeline(url, timeout) -> None:
+    items, skipped_count = load_http_items(url, timeout)
+
+    conn = sqlite3.connect("prices.db")
+    try:
+        create_products_table(conn)
+        saved_count = save_items(conn, items)
+    finally:
+        conn.close()
+
+    suspicious_count = count_suspicious_items(items)
+
+    typer.echo("Результат обработки")
+    typer.echo("-" * 40)
+    typer.echo(f"Получено элементов: {len(items)}")
+    typer.echo(f"Сохранено элементов: {saved_count}")
+    typer.echo(f"Пропущено элементов: {skipped_count}")
+    typer.echo(f"Подозрительных изменений: {suspicious_count}")
 
 @app.callback()
 def main() -> None:
@@ -19,7 +40,6 @@ def main() -> None:
 def show_report(
     *,
     items: list[PriceItem],
-    skipped_count: int,
     threshold: float = typer.Option(
         20.0,
     ),
@@ -53,7 +73,6 @@ def show_report(
 
     typer.echo("-" * 60)
     typer.echo(f"Корректных строк: {len(items)}")
-    typer.echo(f"Пропущено строк: {skipped_count}")
     typer.echo(f"Показано строк: {shown_count}")
 
     return shown_count
@@ -99,7 +118,6 @@ def check(
 
     show_report(
         items=items,
-        skipped_count=skipped_count,
         threshold=threshold,
         only_suspicious=only_suspicious,
         min_price=min_price,
@@ -132,7 +150,9 @@ def check_url(
         help="Таймаут HTTP-запроса в секундах",
     ),
 ) -> None:
-    items, skipped_count = load_http_items(url, timeout=timeout)
+    run_pipeline(url, timeout=timeout)
+    conn = sqlite3.connect("prices.db")
+    items = load_items_from_db(conn)
 
     typer.echo("Проверка прайс-листа")
     typer.echo(f"URL: {url}")
@@ -143,7 +163,6 @@ def check_url(
 
     show_report(
         items=items,
-        skipped_count=skipped_count,
         threshold=threshold,
         only_suspicious=only_suspicious,
         min_price=min_price,

@@ -10,3 +10,14 @@ def price_change_pct(old_price: float, new_price: float) -> float:
 def is_suspicious_change(item: PriceItem, threshold_pct: float = 20.0) -> bool:
     change = price_change_pct(item.old_price, item.new_price)
     return abs(change) >= threshold_pct
+
+
+def count_suspicious_items(items: list[PriceItem], threshold: float = 20.0) -> int:
+    suspicious_count = 0
+
+    for item in items:
+        change = price_change_pct(item.old_price, item.new_price)
+        if abs(change) >= threshold:
+            suspicious_count += 1
+
+    return suspicious_count

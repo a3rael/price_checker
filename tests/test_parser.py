@@ -92,9 +92,7 @@ def test_parse_row_builds_price_item():
 def test_load_csv_items_loads_valid_rows(tmp_path):
     csv_file = tmp_path / "prices.csv"
     csv_file.write_text(
-        "sku,name,old_price,new_price\n"
-        "1001,Товар,100,120\n"
-        "1002,Тест,50,45\n",
+        "sku,name,old_price,new_price\n1001,Товар,100,120\n1002,Тест,50,45\n",
         encoding="utf-8",
     )
 
