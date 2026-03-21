@@ -69,11 +69,11 @@ def load_items(
         with csv_path.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
 
-            for line_number, row in enumerate(reader, start=2):
+            for index, row in enumerate(reader, start=2):
                 try:
                     item = parse_row(row)
                 except RowValidationError as e:
-                    typer.echo(f"Строка {line_number} пропущена: {e}")
+                    typer.echo(f"Строка {index} пропущена: {e}")
                     skipped_count += 1
                     continue
 
