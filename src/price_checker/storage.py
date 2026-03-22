@@ -1,7 +1,10 @@
+import logging
 import sqlite3
 from datetime import UTC, datetime
 
 from price_checker.models import PriceItem, ProductRecord
+
+logger = logging.getLogger(__name__)
 
 
 def current_timestamp() -> str:
@@ -9,6 +12,7 @@ def current_timestamp() -> str:
 
 
 def create_products_table(conn: sqlite3.Connection) -> None:
+    logger.info("Подготавливаем таблицу products")
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -28,9 +32,11 @@ def create_products_table(conn: sqlite3.Connection) -> None:
     columns = {row[1] for row in cursor.fetchall()}
 
     if "created_at" not in columns:
+        logger.info("Добавляем колонку created_at")
         cursor.execute("ALTER TABLE products ADD COLUMN created_at TEXT")
 
     if "updated_at" not in columns:
+        logger.info("Добавляем колонку updated_at")
         cursor.execute("ALTER TABLE products ADD COLUMN updated_at TEXT")
 
     timestamp = current_timestamp()
@@ -43,13 +49,16 @@ def create_products_table(conn: sqlite3.Connection) -> None:
         (timestamp, timestamp),
     )
     conn.commit()
+    logger.info("Таблица products готова")
 
 
 def save_items(conn: sqlite3.Connection, items: list[PriceItem]) -> int:
+    logger.info("Сохраняем в БД %s товаров", len(items))
     cursor = conn.cursor()
 
     for item in items:
         timestamp = current_timestamp()
+        logger.debug("Сохраняем товар sku=%s", item.sku)
         cursor.execute(
             """
             INSERT INTO products (
@@ -73,6 +82,7 @@ def save_items(conn: sqlite3.Connection, items: list[PriceItem]) -> int:
         )
 
     conn.commit()
+    logger.info("Сохранение товаров завершено")
     return len(items)
 
 
@@ -80,10 +90,12 @@ def count_products(conn: sqlite3.Connection) -> int:
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM products")
     row = cursor.fetchone()
+    logger.debug("Текущее количество товаров в БД: %s", row[0])
     return row[0]
 
 
 def load_items_from_db(conn: sqlite3.Connection) -> list[PriceItem]:
+    logger.info("Загружаем товары из БД в PriceItem")
     cursor = conn.cursor()
     cursor.execute("SELECT sku, name, old_price, new_price FROM products")
 
@@ -100,10 +112,12 @@ def load_items_from_db(conn: sqlite3.Connection) -> list[PriceItem]:
             )
         )
 
+    logger.info("Из БД загружено %s товаров", len(items))
     return items
 
 
 def load_product_records(conn: sqlite3.Connection) -> list[ProductRecord]:
+    logger.info("Загружаем записи из БД с временными метками")
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -128,4 +142,5 @@ def load_product_records(conn: sqlite3.Connection) -> list[ProductRecord]:
             )
         )
 
+    logger.info("Из БД загружено %s записей", len(records))
     return records

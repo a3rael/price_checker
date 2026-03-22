@@ -1,4 +1,4 @@
-from price_checker.main import format_timestamp
+from price_checker.pipeline import format_timestamp
 
 
 def test_format_timestamp_formats_iso_string():

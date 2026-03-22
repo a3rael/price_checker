@@ -17,3 +17,12 @@ class ProductRecord:
     new_price: float
     created_at: str
     updated_at: str
+
+@dataclass
+class PipelineResult:
+    received_count: int
+    valid_count: int
+    skipped_count: int
+    saved_count: int
+    total_in_db: int
+    suspicious_count: int

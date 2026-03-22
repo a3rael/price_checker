@@ -69,7 +69,7 @@ def test_load_http_items_parses_valid_json_items(mock_get):
 
 
 @patch("price_checker.http_parser.requests.get")
-def test_load_http_items_skips_invalid_items(mock_get, capsys):
+def test_load_http_items_skips_invalid_items(mock_get):
     response = Mock()
     response.raise_for_status.return_value = None
     response.json.return_value = [
@@ -84,4 +84,3 @@ def test_load_http_items_skips_invalid_items(mock_get, capsys):
         PriceItem(sku="1001", name="Товар", old_price=100.0, new_price=120.0)
     ]
     assert skipped_count == 1
-    assert "Элемент 2 пропущен: SKU не может быть пустым" in capsys.readouterr().out

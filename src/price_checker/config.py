@@ -1,0 +1,2 @@
+DEFAULT_DB_PATH = "data/prices.db"
+DEFAULT_LOG_LEVEL = "INFO"

@@ -1,8 +1,10 @@
 import csv
+import logging
 import pathlib
 
 import price_checker.models as models
-import typer
+
+logger = logging.getLogger(__name__)
 
 
 class RowValidationError(Exception):
@@ -11,14 +13,17 @@ class RowValidationError(Exception):
 
 # Достаёт поля из строки CSV и приводит цены к числам.
 def parse_row_data(row) -> dict[str, str | float]:
+    logger.debug("Разбираем строку CSV: %s", row)
     try:
         sku = row["sku"]
         name = row["name"]
         old_price = float(row["old_price"])
         new_price = float(row["new_price"])
     except KeyError as e:
+        logger.warning("Отсутствует обязательное поле в CSV: %s", e)
         raise RowValidationError(f"Отсутствует обязательное поле: {e}")
     except ValueError:
+        logger.warning("Цена в CSV не является числом: %s", row)
         raise RowValidationError("Цена должна быть числом")
 
     return {
@@ -33,6 +38,7 @@ def parse_row_data(row) -> dict[str, str | float]:
 def validate_row_data(
     *, sku: str, name: str, old_price: float, new_price: float
 ) -> None:
+    logger.debug("Валидируем строку товара sku=%s", sku)
     if not sku:
         raise RowValidationError("SKU не может быть пустым")
 
@@ -53,6 +59,7 @@ def validate_row_data(
 def parse_row(row) -> models.PriceItem:
     parsed_data = parse_row_data(row)
     validate_row_data(**parsed_data)
+    logger.debug("PriceItem успешно создан для sku=%s", parsed_data["sku"])
 
     return models.PriceItem(
         sku=parsed_data["sku"],
@@ -68,6 +75,7 @@ def load_csv_items(
 ) -> tuple[list[models.PriceItem], int]:
     items: list[models.PriceItem] = []
     skipped_count = 0
+    logger.info("Начинаем загрузку CSV из %s", csv_path)
 
     try:
         with csv_path.open("r", encoding="utf-8") as f:
@@ -77,13 +85,19 @@ def load_csv_items(
                 try:
                     item = parse_row(row)
                 except RowValidationError as e:
-                    typer.echo(f"Строка {index} пропущена: {e}")
+                    logger.warning("Строка %s пропущена: %s", index, e)
                     skipped_count += 1
                     continue
 
                 items.append(item)
     except FileNotFoundError:
-        typer.echo(f"Файл не найден: {csv_path}")
-        return []
+        logger.error("CSV-файл не найден: %s", csv_path)
+        return [], 0
+
+    logger.info(
+        "Загрузка CSV завершена: валидных=%s, пропущено=%s",
+        len(items),
+        skipped_count,
+    )
 
     return items, skipped_count
